@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * JDBC 템플릿 구현하기
+ * JdbcTemplate
  */
 @Slf4j
 public class JdbcTemplateItemRepositoryV1 implements ItemRepository {
@@ -41,8 +41,8 @@ public class JdbcTemplateItemRepositoryV1 implements ItemRepository {
             ps.setInt(2, item.getPrice());
             ps.setInt(3, item.getQuantity());
             return ps;
-
         }, keyHolder);
+
         long key = keyHolder.getKey().longValue();
         item.setId(key);
         return item;
@@ -51,33 +51,22 @@ public class JdbcTemplateItemRepositoryV1 implements ItemRepository {
     @Override
     public void update(Long itemId, ItemUpdateDto updateParam) {
         String sql = "update item set item_name=?, price=?, quantity=? where id=?";
-        template.update(sql,updateParam.getItemName(),
-                            updateParam.getPrice(),
-                            updateParam.getQuantity(),
-                            itemId );
+        template.update(sql,
+                updateParam.getItemName(),
+                updateParam.getPrice(),
+                updateParam.getQuantity(),
+                itemId);
     }
 
     @Override
     public Optional<Item> findById(Long id) {
-        String sql ="select id, item_name, price, quantity where id =?";
-
-        try{
+        String sql = "select id, item_name, price, quantity from item where id = ?";
+        try {
             Item item = template.queryForObject(sql, itemRowMapper(), id);
             return Optional.of(item);
-        }catch (EmptyResultDataAccessException e){
+        } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
-    }
-
-    private RowMapper<Item> itemRowMapper() {
-        return ((rs, rowNum) -> {
-            Item item = new Item();
-            item.setId(rs.getLong("id"));
-            item.setItemName(rs.getString("item_name"));
-            item.setPrice(rs.getInt("price"));
-            item.setQuantity(rs.getInt("quantity"));
-            return item;
-        });
     }
 
     @Override
@@ -94,19 +83,31 @@ public class JdbcTemplateItemRepositoryV1 implements ItemRepository {
         boolean andFlag = false;
         List<Object> param = new ArrayList<>();
         if (StringUtils.hasText(itemName)) {
-            sql += "item_name like concat('%',?,'%')";
+            sql += " item_name like concat('%',?,'%')";
             param.add(itemName);
             andFlag = true;
         }
+
         if (maxPrice != null) {
             if (andFlag) {
-                sql += "and";
+                sql += " and";
             }
-            sql += "price <= ?";
+            sql += " price <= ?";
             param.add(maxPrice);
         }
+
         log.info("sql={}", sql);
         return template.query(sql, itemRowMapper(), param.toArray());
     }
 
+    private RowMapper<Item> itemRowMapper() {
+        return ((rs, rowNum) -> {
+            Item item = new Item();
+            item.setId(rs.getLong("id"));
+            item.setItemName(rs.getString("item_name"));
+            item.setPrice(rs.getInt("price"));
+            item.setQuantity(rs.getInt("quantity"));
+            return item;
+        });
+    }
 }
